@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Marine AI | SIH26057
+    </title>
+
+    <!-- IMPORTANT:
+         CSS is inside /static/
+    -->
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+
+</head>
+
+
+<body>
+
+    <!-- =====================================================
+         NAVBAR
+    ====================================================== -->
+
+    <header class="navbar">
+
+        <div class="brand">
+
+            <div class="brand-icon">
+                🌊
+            </div>
+
+            <div>
+
+                <div class="brand-title">
+                    MARINE AI
+                </div>
+
+                <div class="brand-subtitle">
+                    SIH26057 • UNDERWATER DETECTION
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="system-status">
+
+            <span
+                id="statusDot"
+                class="status-dot"
+            ></span>
+
+            <span id="statusText">
+                Checking AI model...
+            </span>
+
+        </div>
+
+    </header>
+
+
+
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
+    <main class="container">
+
+
+        <!-- HERO -->
+
+        <section class="hero">
+
+            <div>
+
+                <div class="eyebrow">
+                    ARTIFICIAL INTELLIGENCE
+                    • COMPUTER VISION
+                </div>
+
+                <h1>
+                    Underwater Object
+                    <span>Detection</span>
+                </h1>
+
+                <p>
+                    Upload an underwater or sonar image
+                    and let your trained YOLO model
+                    identify marine objects and debris.
+                </p>
+
+            </div>
+
+
+            <div class="model-card">
+
+                <div class="model-label">
+                    ACTIVE MODEL
+                </div>
+
+                <div class="model-name">
+                    YOLO
+                </div>
+
+                <div class="model-path">
+                    train-2 / best.pt
+                </div>
+
+                <div class="model-live">
+                    ● REAL-TIME INFERENCE
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             UPLOAD SECTION
+        ================================================== -->
+
+        <section class="panel">
+
+            <div class="section-heading">
+
+                <div>
+
+                    <div class="section-number">
+                        01
+                    </div>
+
+                    <h2>
+                        Analyze Image
+                    </h2>
+
+                    <p>
+                        Upload a test image to run
+                        your trained YOLO model.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- DROPZONE -->
+
+            <div
+                id="dropZone"
+                class="drop-zone"
+            >
+
+                <div class="upload-icon">
+                    ↑
+                </div>
+
+                <h3>
+                    Drop your image here
+                </h3>
+
+                <p>
+                    or click to browse
+                </p>
+
+                <button
+                    id="browseButton"
+                    class="secondary-button"
+                    type="button"
+                >
+                    Choose Image
+                </button>
+
+                <div class="file-types">
+                    JPG • JPEG • PNG • WEBP
+                </div>
+
+                <input
+                    id="fileInput"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    hidden
+                >
+
+            </div>
+
+
+            <!-- SELECTED IMAGE -->
+
+            <div
+                id="selectedImageSection"
+                class="selected-section hidden"
+            >
+
+                <div class="section-title-row">
+
+                    <h3>
+                        Selected Image
+                    </h3>
+
+                    <button
+                        id="removeButton"
+                        class="remove-button"
+                        type="button"
+                    >
+                        Remove
+                    </button>
+
+                </div>
+
+
+                <div class="image-preview-container">
+
+                    <img
+                        id="previewImage"
+                        class="preview-image"
+                        alt="Selected underwater image"
+                    >
+
+                </div>
+
+                <div
+                    id="fileName"
+                    class="file-name"
+                >
+                </div>
+
+            </div>
+
+
+
+            <!-- =================================================
+                 CONFIDENCE
+            ================================================== -->
+
+            
+
+
+
+            <!-- DETECT BUTTON -->
+
+            <button
+                id="detectButton"
+                class="detect-button"
+                type="button"
+                disabled
+            >
+
+                <span id="detectButtonText">
+                    Detect Objects
+                </span>
+
+            </button>
+
+
+            <!-- ERROR -->
+
+            <div
+                id="errorBox"
+                class="error-box hidden"
+            ></div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             RESULTS
+        ================================================== -->
+
+        <section
+            id="resultsSection"
+            class="panel results-panel hidden"
+        >
+
+            <div class="results-header">
+
+                <div>
+
+                    <div class="section-number">
+                        02
+                    </div>
+
+                    <h2>
+                        Detection Results
+                    </h2>
+
+                </div>
+
+
+                <div
+                    id="detectionCount"
+                    class="count-badge"
+                >
+                    0 objects
+                </div>
+
+            </div>
+
+
+
+            <div class="results-grid">
+
+
+                <!-- ANNOTATED IMAGE -->
+
+                <div class="result-image-card">
+
+                    <div class="result-card-title">
+                        YOLO Detection
+                    </div>
+
+                    <img
+                        id="resultImage"
+                        class="result-image"
+                        alt="YOLO detection result"
+                    >
+
+                </div>
+
+
+
+                <!-- DETECTION LIST -->
+
+                <div class="detection-card">
+
+                    <div class="result-card-title">
+                        Detected Objects
+                    </div>
+
+                    <div
+                        id="detectionList"
+                        class="detection-list"
+                    >
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- SUMMARY -->
+
+            <div class="summary-grid">
+
+                <div class="summary-card">
+
+                    <div class="summary-label">
+                        OBJECTS
+                    </div>
+
+                    <div
+                        id="summaryCount"
+                        class="summary-value"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <div class="summary-label">
+                        INFERENCE
+                    </div>
+
+                    <div
+                        id="inferenceTime"
+                        class="summary-value"
+                    >
+                        -
+                    </div>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <div class="summary-label">
+                        CONFIDENCE
+                    </div>
+
+                    <div
+                        id="summaryConfidence"
+                        class="summary-value"
+                    >
+                        25%
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+
+    <!-- =====================================================
+         FOOTER
+    ====================================================== -->
+
+    <footer>
+
+        SIH26057 • Underwater Object Detection
+        • YOLO Deep Learning
+
+    </footer>
+
+
+
+    <!-- IMPORTANT:
+         JavaScript is inside /static/
+    -->
+
+    <script
+        src="/static/app.js"
+    ></script>
+
+</body>
+
+</html>
