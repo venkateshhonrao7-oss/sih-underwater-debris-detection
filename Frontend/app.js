@@ -1,18 +1,16 @@
 // ============================================================
-// MARINE AI - SIH26057
-// FRONTEND JAVASCRIPT
+// MARINE AI - UNDERWATER DEBRIS DETECTION
+// Frontend JavaScript
 // ============================================================
-
-let selectedFile = null;
 
 
 // ============================================================
-// GET HTML ELEMENTS
+// ELEMENTS
 // ============================================================
 
 const fileInput = document.getElementById("fileInput");
-const browseButton = document.getElementById("browseButton");
 const dropZone = document.getElementById("dropZone");
+const browseButton = document.getElementById("browseButton");
 
 const selectedImageSection =
     document.getElementById("selectedImageSection");
@@ -56,41 +54,56 @@ const inferenceTime =
 const summaryConfidence =
     document.getElementById("summaryConfidence");
 
-const statusDot =
-    document.getElementById("statusDot");
-
 const statusText =
     document.getElementById("statusText");
 
-
-// ============================================================
-// CHECK ELEMENTS
-// ============================================================
-
-console.log("Marine AI JavaScript loaded.");
-
-console.log("fileInput:", fileInput);
-console.log("browseButton:", browseButton);
-console.log("dropZone:", dropZone);
+const statusDot =
+    document.getElementById("statusDot");
 
 
 // ============================================================
-// UPDATE CONFIDENCE
+// BACKEND URL
+// ============================================================
+//
+// Because the frontend is served by FastAPI itself,
+// we can use the relative API path.
+//
+// Local:
+// http://127.0.0.1:8000/api/detect
+//
+// Render:
+// https://your-render-url/api/detect
+//
+
+const API_BASE_URL = "";
+
+
+// ============================================================
+// SELECTED FILE
 // ============================================================
 
-
+let selectedFile = null;
 
 
 // ============================================================
-// SHOW ERROR
+// INITIALIZATION
+// ============================================================
+
+console.log("Marine AI frontend loaded.");
+
+
+// ============================================================
+// ERROR MESSAGE
 // ============================================================
 
 function showError(message) {
 
-    console.error(message);
+    if (!errorBox) {
+        console.error(message);
+        return;
+    }
 
-    errorBox.textContent =
-        message;
+    errorBox.textContent = message;
 
     errorBox.classList.remove("hidden");
 
@@ -98,10 +111,14 @@ function showError(message) {
 
 
 // ============================================================
-// HIDE ERROR
+// CLEAR ERROR
 // ============================================================
 
-function hideError() {
+function clearError() {
+
+    if (!errorBox) {
+        return;
+    }
 
     errorBox.textContent = "";
 
@@ -111,102 +128,80 @@ function hideError() {
 
 
 // ============================================================
-// OPEN FILE PICKER
+// SET STATUS
 // ============================================================
 
-function openFilePicker() {
+function setStatus(message, online = true) {
 
-    console.log("Opening file picker...");
+    if (statusText) {
+        statusText.textContent = message;
+    }
 
-    fileInput.click();
+    if (statusDot) {
+
+        statusDot.classList.toggle(
+            "offline",
+            !online
+        );
+
+    }
 
 }
 
 
 // ============================================================
-// BROWSE BUTTON
+// FORMAT CONFIDENCE
 // ============================================================
 
-browseButton.addEventListener(
-    "click",
-    function(event) {
+function formatConfidence(value) {
 
-        event.preventDefault();
-        event.stopPropagation();
+    let confidence = Number(value);
 
-        openFilePicker();
-
+    if (!Number.isFinite(confidence)) {
+        return "0.0%";
     }
-);
 
+    // Backend normally sends 0.89
+    // Convert to 89.0%
 
-// ============================================================
-// DROPZONE CLICK
-// ============================================================
-
-dropZone.addEventListener(
-    "click",
-    function(event) {
-
-        // Don't trigger twice when the actual button is clicked.
-        if (
-            event.target === browseButton ||
-            browseButton.contains(event.target)
-        ) {
-            return;
-        }
-
-        openFilePicker();
-
+    if (confidence <= 1) {
+        confidence = confidence * 100;
     }
-);
+
+    return confidence.toFixed(1) + "%";
+
+}
 
 
 // ============================================================
-// FILE INPUT CHANGE
+// FORMAT TIME
 // ============================================================
 
-fileInput.addEventListener(
-    "change",
-    function(event) {
+function formatInferenceTime(value) {
 
-        console.log(
-            "File input changed."
-        );
+    const time = Number(value);
 
-        const files =
-            event.target.files;
-
-        console.log(
-            "Files selected:",
-            files
-        );
-
-
-        if (!files || files.length === 0) {
-
-            console.log(
-                "No file selected."
-            );
-
-            return;
-
-        }
-
-
-        handleSelectedFile(
-            files[0]
-        );
-
+    if (!Number.isFinite(time)) {
+        return "--";
     }
-);
+
+    return Math.round(time) + " ms";
+
+}
 
 
 // ============================================================
-// HANDLE SELECTED FILE
+// SELECT IMAGE
 // ============================================================
 
-function handleSelectedFile(file) {
+function selectImage(file) {
+
+    clearError();
+
+    if (!file) {
+        return;
+    }
+
 
     console.log(
         "Selected file:",
@@ -216,124 +211,182 @@ function handleSelectedFile(file) {
     );
 
 
-    hideError();
-
-
-    // Check file type
+    // --------------------------------------------------------
+    // Check image type
+    // --------------------------------------------------------
 
     if (!file.type.startsWith("image/")) {
 
         showError(
-            "Please select an image file such as JPG, PNG, or WEBP."
+            "Please select a valid image file."
         );
 
         return;
-
     }
 
+
+    // --------------------------------------------------------
+    // Store selected file
+    // --------------------------------------------------------
 
     selectedFile = file;
 
 
-    // ========================================================
-    // CREATE IMAGE PREVIEW
-    // ========================================================
+    // --------------------------------------------------------
+    // Show filename
+    // --------------------------------------------------------
 
-    const imageURL =
-        URL.createObjectURL(file);
-
-
-    previewImage.src =
-        imageURL;
+    if (fileName) {
+        fileName.textContent = file.name;
+    }
 
 
-    previewImage.onload =
-        function() {
+    // --------------------------------------------------------
+    // Preview original image
+    // --------------------------------------------------------
 
-            console.log(
-                "Image preview loaded successfully."
+    const reader = new FileReader();
+
+
+    reader.onload = function (event) {
+
+        if (previewImage) {
+
+            previewImage.src =
+                event.target.result;
+
+            previewImage.removeAttribute(
+                "hidden"
             );
 
-        };
-
-
-    previewImage.onerror =
-        function() {
-
-            console.error(
-                "Could not display image preview."
+            previewImage.classList.remove(
+                "hidden"
             );
 
-            showError(
-                "The image could not be displayed."
-            );
+            previewImage.style.display =
+                "block";
 
-        };
-
-
-    // ========================================================
-    // SHOW FILE INFORMATION
-    // ========================================================
-
-    fileName.textContent =
-        `${file.name} • ${formatFileSize(file.size)}`;
+        }
 
 
-    // ========================================================
-    // SHOW SELECTED IMAGE SECTION
-    // ========================================================
+        console.log(
+            "Image successfully selected."
+        );
 
-    selectedImageSection.classList.remove(
-        "hidden"
-    );
+    };
 
 
-    // ========================================================
-    // ENABLE DETECTION
-    // ========================================================
+    reader.onerror = function () {
 
-    detectButton.disabled =
-        false;
+        showError(
+            "Could not read the selected image."
+        );
+
+    };
 
 
-    // Remove old results
+    reader.readAsDataURL(file);
 
-    resultsSection.classList.add(
-        "hidden"
-    );
+
+    // --------------------------------------------------------
+    // Show selected image section
+    // --------------------------------------------------------
+
+    if (selectedImageSection) {
+
+        selectedImageSection.classList.remove(
+            "hidden"
+        );
+
+    }
+
+
+    // --------------------------------------------------------
+    // Enable detection button
+    // --------------------------------------------------------
+
+    if (detectButton) {
+
+        detectButton.disabled = false;
+
+    }
+
+
+    // --------------------------------------------------------
+    // Hide previous results
+    // --------------------------------------------------------
+
+    if (resultsSection) {
+
+        resultsSection.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    if (resultImage) {
+
+        resultImage.removeAttribute(
+            "src"
+        );
+
+    }
 
 
     console.log(
-        "Image successfully selected."
+        "Ready for detection."
     );
 
 }
 
 
 // ============================================================
-// FORMAT FILE SIZE
+// FILE INPUT
 // ============================================================
 
-function formatFileSize(bytes) {
+if (fileInput) {
 
-    if (bytes < 1024) {
+    fileInput.addEventListener(
+        "change",
+        function (event) {
 
-        return `${bytes} B`;
+            const files =
+                event.target.files;
 
-    }
+            if (
+                files &&
+                files.length > 0
+            ) {
 
-    if (bytes < 1024 * 1024) {
+                selectImage(
+                    files[0]
+                );
 
-        return `${(
-            bytes / 1024
-        ).toFixed(1)} KB`;
+            }
 
-    }
+        }
+    );
 
-    return `${(
-        bytes /
-        (1024 * 1024)
-    ).toFixed(1)} MB`;
+}
+
+
+// ============================================================
+// BROWSE BUTTON
+// ============================================================
+
+if (browseButton) {
+
+    browseButton.addEventListener(
+        "click",
+        function () {
+
+            if (fileInput) {
+                fileInput.click();
+            }
+
+        }
+    );
 
 }
 
@@ -342,440 +395,673 @@ function formatFileSize(bytes) {
 // DRAG OVER
 // ============================================================
 
-dropZone.addEventListener(
-    "dragover",
-    function(event) {
+if (dropZone) {
 
-        event.preventDefault();
+    dropZone.addEventListener(
+        "dragover",
+        function (event) {
 
-        event.stopPropagation();
+            event.preventDefault();
 
-        dropZone.classList.add(
-            "dragover"
-        );
-
-    }
-);
-
-
-// ============================================================
-// DRAG LEAVE
-// ============================================================
-
-dropZone.addEventListener(
-    "dragleave",
-    function(event) {
-
-        event.preventDefault();
-
-        dropZone.classList.remove(
-            "dragover"
-        );
-
-    }
-);
-
-
-// ============================================================
-// DROP IMAGE
-// ============================================================
-
-dropZone.addEventListener(
-    "drop",
-    function(event) {
-
-        event.preventDefault();
-
-        event.stopPropagation();
-
-        dropZone.classList.remove(
-            "dragover"
-        );
-
-
-        console.log(
-            "Image dropped."
-        );
-
-
-        const files =
-            event.dataTransfer.files;
-
-
-        if (!files || files.length === 0) {
-
-            return;
+            dropZone.classList.add(
+                "drag-over"
+            );
 
         }
+    );
 
 
-        handleSelectedFile(
-            files[0]
-        );
+    // --------------------------------------------------------
+    // DRAG LEAVE
+    // --------------------------------------------------------
 
-    }
-);
+    dropZone.addEventListener(
+        "dragleave",
+        function () {
+
+            dropZone.classList.remove(
+                "drag-over"
+            );
+
+        }
+    );
+
+
+    // --------------------------------------------------------
+    // DROP
+    // --------------------------------------------------------
+
+    dropZone.addEventListener(
+        "drop",
+        function (event) {
+
+            event.preventDefault();
+
+            dropZone.classList.remove(
+                "drag-over"
+            );
+
+
+            const files =
+                event.dataTransfer.files;
+
+
+            if (
+                files &&
+                files.length > 0
+            ) {
+
+                selectImage(
+                    files[0]
+                );
+
+            }
+
+        }
+    );
+
+}
 
 
 // ============================================================
 // REMOVE IMAGE
 // ============================================================
 
-removeButton.addEventListener(
-    "click",
-    function() {
+if (removeButton) {
 
-        console.log(
-            "Removing selected image."
-        );
+    removeButton.addEventListener(
+        "click",
+        function () {
 
-
-        selectedFile = null;
+            selectedFile = null;
 
 
-        fileInput.value = "";
+            if (fileInput) {
+                fileInput.value = "";
+            }
 
 
-        previewImage.src = "";
+            if (previewImage) {
+
+                previewImage.removeAttribute(
+                    "src"
+                );
+
+            }
 
 
-        fileName.textContent = "";
+            if (fileName) {
+                fileName.textContent = "";
+            }
 
 
-        selectedImageSection.classList.add(
-            "hidden"
-        );
+            if (selectedImageSection) {
+
+                selectedImageSection.classList.add(
+                    "hidden"
+                );
+
+            }
 
 
-        detectButton.disabled =
-            true;
+            if (resultsSection) {
+
+                resultsSection.classList.add(
+                    "hidden"
+                );
+
+            }
 
 
-        resultsSection.classList.add(
-            "hidden"
-        );
+            if (resultImage) {
+
+                resultImage.removeAttribute(
+                    "src"
+                );
+
+            }
 
 
-        hideError();
+            if (detectButton) {
 
-    }
-);
+                detectButton.disabled = true;
 
-
-// ============================================================
-// CONFIDENCE SLIDER
-// ============================================================
+            }
 
 
+            clearError();
 
 
-// ============================================================
-// DETECT BUTTON
-// ============================================================
+            console.log(
+                "Selected image removed."
+            );
 
-detectButton.addEventListener(
-    "click",
-    detectObjects
-);
-
-
-// ============================================================
-// YOLO DETECTION
-// ============================================================
-
-async function detectObjects() {
-    console.log("DETECT BUTTON CLICKED");
-
-    hideError();
-
-    // ---------------------------------------------
-    // Make sure an image was selected
-    // ---------------------------------------------
-
-    if (!selectedFile) {
-
-        showError(
-            "Please select an image first."
-        );
-
-        return;
-    }
-
-
-    // ---------------------------------------------
-    // Disable button while AI is working
-    // ---------------------------------------------
-
-    detectButton.disabled = true;
-
-    detectButtonText.textContent =
-        "Running YOLO...";
-
-
-    // ---------------------------------------------
-    // Put image into FormData
-    // ---------------------------------------------
-
-    const formData = new FormData();
-
-    formData.append(
-        "file",
-        selectedFile
+        }
     );
-
-
-    try {
-
-        console.log(
-            "Sending image to YOLO backend..."
-        );
-
-
-        // -----------------------------------------
-        // Send image to FastAPI
-        // -----------------------------------------
-
-        const response =
-            await fetch(
-                "/api/detect",
-                {
-                    method: "POST",
-                    body: formData
-                }
-            );
-
-
-        console.log(
-            "Backend response:",
-            response.status
-        );
-
-
-        // -----------------------------------------
-        // Make sure backend returned JSON
-        // -----------------------------------------
-
-        const contentType =
-            response.headers.get(
-                "content-type"
-            );
-
-
-        if (
-            !contentType ||
-            !contentType.includes(
-                "application/json"
-            )
-        ) {
-
-            const text =
-                await response.text();
-
-            console.error(
-                "Backend did not return JSON:",
-                text
-            );
-
-            throw new Error(
-                "Backend returned an invalid response."
-            );
-        }
-
-
-        // -----------------------------------------
-        // Convert response to JSON
-        // -----------------------------------------
-
-        const data =
-            await response.json();
-
-
-        // -----------------------------------------
-        // Check for backend error
-        // -----------------------------------------
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.detail ||
-                "YOLO detection failed."
-            );
-        }
-
-
-        // -----------------------------------------
-        // Display YOLO results
-        // -----------------------------------------
-
-        displayResults(
-            data
-        );
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Detection error:",
-            error
-        );
-
-        showError(
-            error.message
-        );
-
-    }
-
-    finally {
-
-        // -----------------------------------------
-        // Enable button again
-        // -----------------------------------------
-
-        detectButton.disabled =
-            false;
-
-        detectButtonText.textContent =
-            "Detect Objects";
-
-    }
 
 }
 
 
 // ============================================================
-// DISPLAY RESULTS
+// DETECTION BUTTON
 // ============================================================
 
-function displayResults(data) {
+if (detectButton) {
 
-    resultsSection.classList.remove(
-        "hidden"
-    );
+    detectButton.addEventListener(
+        "click",
+        async function () {
 
-
-    resultImage.src =
-        data.annotated_image;
-
-
-    const detections =
-        data.detections || [];
+            console.log(
+                "DETECT BUTTON CLICKED"
+            );
 
 
-    const count =
-        detections.length;
+            clearError();
 
 
-    detectionCount.textContent =
-        `${count} ${
-            count === 1
-                ? "object"
-                : "objects"
-        }`;
+            // ------------------------------------------------
+            // Check selected file
+            // ------------------------------------------------
+
+            if (!selectedFile) {
+
+                showError(
+                    "Please select an image first."
+                );
+
+                return;
+
+            }
 
 
-    summaryCount.textContent =
-        count;
+            // ------------------------------------------------
+            // Disable button
+            // ------------------------------------------------
+
+            detectButton.disabled = true;
 
 
-    if (
-        data.summary &&
-        data.summary.inference_time_ms !== undefined
-    ) {
+            if (detectButtonText) {
 
-        inferenceTime.textContent =
-            `${data.summary.inference_time_ms} ms`;
+                detectButtonText.textContent =
+                    "Detecting...";
 
-    }
+            }
 
 
-    if (data.settings) {
-
-        summaryConfidence.textContent =
-            `${Math.round(
-                data.settings.confidence_threshold * 100
-            )}%`;
-
-    }
+            setStatus(
+                "Running YOLO detection...",
+                true
+            );
 
 
-    detectionList.innerHTML = "";
+            // ------------------------------------------------
+            // Create FormData
+            // ------------------------------------------------
+
+            const formData =
+                new FormData();
+
+            formData.append(
+                "file",
+                selectedFile
+            );
 
 
-    if (detections.length === 0) {
-
-        detectionList.innerHTML = `
-            <div class="detection-item">
-
-                <div class="detection-class">
-                    No objects detected
-                </div>
-
-                <div class="detection-box">
-                    Try lowering the confidence threshold.
-                </div>
-
-            </div>
-        `;
-
-        return;
-
-    }
+            console.log(
+                "Sending image to YOLO backend..."
+            );
 
 
-    detections.forEach(
-        function(detection) {
+            console.log(
+                "POST /api/detect starting..."
+            );
 
-            const item =
-                document.createElement(
-                    "div"
+
+            try {
+
+                // ====================================================
+                // SEND IMAGE TO BACKEND
+                // ====================================================
+
+                const response =
+                    await fetch(
+                        API_BASE_URL +
+                        "/api/detect",
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+
+                console.log(
+                    "Backend response received:",
+                    response.status
                 );
 
 
-            item.className =
-                "detection-item";
+                // ====================================================
+                // READ RESPONSE
+                // ====================================================
+
+                let data;
 
 
-            const box =
-                detection.box;
+                try {
+
+                    data =
+                        await response.json();
+
+                } catch (jsonError) {
+
+                    throw new Error(
+                        "Backend returned invalid JSON."
+                    );
+
+                }
 
 
-            item.innerHTML = `
-
-                <div class="detection-top">
-
-                    <div class="detection-class">
-                        ${escapeHTML(
-                            detection.class_name
-                        )}
-                    </div>
-
-                    <div class="detection-confidence">
-                        ${detection.confidence_percent}%
-                    </div>
-
-                </div>
-
-                <div class="detection-box">
-
-                    Bounding box:
-                    (${box.x1}, ${box.y1})
-                    →
-                    (${box.x2}, ${box.y2})
-
-                    <br>
-
-                    Size:
-                    ${box.width} × ${box.height}
-
-                </div>
-
-            `;
+                console.log(
+                    "Detection response:",
+                    data
+                );
 
 
-            detectionList.appendChild(
-                item
-            );
+                // ====================================================
+                // BACKEND ERROR
+                // ====================================================
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Detection failed."
+                    );
+
+                }
+
+
+                if (!data.success) {
+
+                    throw new Error(
+                        data.error ||
+                        "YOLO detection failed."
+                    );
+
+                }
+
+
+                // ====================================================
+                // GET DETECTIONS
+                // ====================================================
+
+                const detections =
+                    Array.isArray(
+                        data.detections
+                    )
+                        ? data.detections
+                        : [];
+
+
+                const count =
+                    Number(
+                        data.detection_count ??
+                        detections.length
+                    );
+
+
+                // ====================================================
+                // UPDATE DETECTION COUNT
+                // ====================================================
+
+                if (detectionCount) {
+
+                    detectionCount.textContent =
+                        count;
+
+                }
+
+
+                if (summaryCount) {
+
+                    summaryCount.textContent =
+                        count;
+
+                }
+
+
+                // ====================================================
+                // UPDATE CONFIDENCE
+                // ====================================================
+
+                const averageConfidence =
+                    data.average_confidence_percent ??
+                    data.average_confidence ??
+                    0;
+
+
+                if (summaryConfidence) {
+
+                    summaryConfidence.textContent =
+                        formatConfidence(
+                            averageConfidence
+                        );
+
+                }
+
+
+                // ====================================================
+                // UPDATE INFERENCE TIME
+                // ====================================================
+
+                if (inferenceTime) {
+
+                    inferenceTime.textContent =
+                        formatInferenceTime(
+                            data.inference_time_ms
+                        );
+
+                }
+
+
+                // ====================================================
+                // BUILD DETECTION LIST
+                // ====================================================
+
+                if (detectionList) {
+
+                    detectionList.innerHTML = "";
+
+
+                    if (detections.length === 0) {
+
+                        const emptyItem =
+                            document.createElement(
+                                "div"
+                            );
+
+                        emptyItem.className =
+                            "detection-item";
+
+
+                        emptyItem.textContent =
+                            "No objects detected.";
+
+                        detectionList.appendChild(
+                            emptyItem
+                        );
+
+                    } else {
+
+                        detections.forEach(
+                            function (detection, index) {
+
+                                const item =
+                                    document.createElement(
+                                        "div"
+                                    );
+
+                                item.className =
+                                    "detection-item";
+
+
+                                const className =
+                                    detection.class_name ||
+                                    "Unknown";
+
+
+                                const confidence =
+                                    detection.confidence_percent ??
+                                    detection.confidence ??
+                                    0;
+
+
+                                item.innerHTML = `
+                                    <div class="detection-name">
+                                        ${index + 1}. ${className}
+                                    </div>
+
+                                    <div class="detection-confidence">
+                                        ${formatConfidence(confidence)}
+                                    </div>
+                                `;
+
+
+                                detectionList.appendChild(
+                                    item
+                                );
+
+                            }
+                        );
+
+                    }
+
+                }
+
+
+                // ====================================================
+                // GET ANNOTATED YOLO IMAGE
+                // ====================================================
+
+                const annotatedImage =
+                    data.annotated_image ||
+                    data.result_image ||
+                    data.image;
+
+
+                console.log(
+                    "Annotated image available:",
+                    Boolean(annotatedImage)
+                );
+
+
+                // ====================================================
+                // DISPLAY ANNOTATED YOLO IMAGE
+                // ====================================================
+
+                if (
+                    annotatedImage &&
+                    resultImage
+                ) {
+
+                    console.log(
+                        "Annotated YOLO image received."
+                    );
+
+
+                    console.log(
+                        "Image prefix:",
+                        annotatedImage.substring(
+                            0,
+                            60
+                        )
+                    );
+
+
+                    console.log(
+                        "Image length:",
+                        annotatedImage.length
+                    );
+
+
+                    // ------------------------------------------------
+                    // IMPORTANT:
+                    //
+                    // The backend ALREADY returns:
+                    //
+                    // data:image/jpeg;base64,/9j/...
+                    //
+                    // Therefore we DO NOT add another prefix.
+                    // ------------------------------------------------
+
+                    resultImage.src =
+                        annotatedImage;
+
+
+                    resultImage.removeAttribute(
+                        "hidden"
+                    );
+
+
+                    resultImage.classList.remove(
+                        "hidden"
+                    );
+
+
+                    resultImage.style.display =
+                        "block";
+
+
+                    resultImage.style.visibility =
+                        "visible";
+
+
+                    resultImage.style.opacity =
+                        "1";
+
+
+                    // ------------------------------------------------
+                    // IMAGE LOAD SUCCESS
+                    // ------------------------------------------------
+
+                    resultImage.onload =
+                        function () {
+
+                            console.log(
+                                "YOLO result image loaded successfully."
+                            );
+
+
+                            console.log(
+                                "Result image dimensions:",
+                                resultImage.naturalWidth,
+                                "x",
+                                resultImage.naturalHeight
+                            );
+
+                        };
+
+
+                    // ------------------------------------------------
+                    // IMAGE LOAD ERROR
+                    // ------------------------------------------------
+
+                    resultImage.onerror =
+                        function (event) {
+
+                            console.error(
+                                "YOLO result image failed to load.",
+                                event
+                            );
+
+
+                            console.error(
+                                "Image source starts with:",
+                                resultImage.src.substring(
+                                    0,
+                                    100
+                                )
+                            );
+
+
+                            showError(
+                                "YOLO detection completed, but the result image could not be displayed."
+                            );
+
+                        };
+
+
+                } else {
+
+                    console.error(
+                        "No annotated image was returned by backend."
+                    );
+
+
+                    showError(
+                        "Detection completed, but the backend did not return a result image."
+                    );
+
+                }
+
+
+                // ====================================================
+                // SHOW RESULTS SECTION
+                // ====================================================
+
+                if (resultsSection) {
+
+                    resultsSection.classList.remove(
+                        "hidden"
+                    );
+
+
+                    resultsSection.style.display =
+                        "block";
+
+                    resultsSection.style.visibility =
+                        "visible";
+
+                    resultsSection.style.opacity =
+                        "1";
+
+                }
+
+
+                // ====================================================
+                // STATUS
+                // ====================================================
+
+                setStatus(
+                    "Detection completed",
+                    true
+                );
+
+
+                console.log(
+                    "Detection completed successfully."
+                );
+
+
+            } catch (error) {
+
+                console.error(
+                    "Detection error:",
+                    error
+                );
+
+
+                showError(
+                    error.message ||
+                    "Something went wrong while detecting the image."
+                );
+
+
+                setStatus(
+                    "Detection failed",
+                    false
+                );
+
+
+            } finally {
+
+                // ------------------------------------------------
+                // Re-enable button
+                // ------------------------------------------------
+
+                detectButton.disabled = false;
+
+
+                if (detectButtonText) {
+
+                    detectButtonText.textContent =
+                        "Detect Debris";
+
+                }
+
+            }
 
         }
     );
@@ -784,31 +1070,21 @@ function displayResults(data) {
 
 
 // ============================================================
-// ESCAPE HTML
+// CHECK BACKEND STATUS
 // ============================================================
 
-function escapeHTML(value) {
-
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-
-}
-
-
-// ============================================================
-// CHECK BACKEND
-// ============================================================
-
-async function checkBackend() {
+async function checkBackendStatus() {
 
     try {
 
+        console.log(
+            "Checking YOLO backend status..."
+        );
+
+
         const response =
             await fetch(
+                API_BASE_URL +
                 "/api/status"
             );
 
@@ -834,17 +1110,23 @@ async function checkBackend() {
 
         if (data.model_ready) {
 
-            statusDot.classList.add(
-                "online"
+            setStatus(
+                "YOLO model ready",
+                true
             );
-
-            statusText.textContent =
-                "AI MODEL ONLINE";
 
         } else {
 
-            statusText.textContent =
-                "MODEL NOT READY";
+            setStatus(
+                "YOLO model not ready",
+                false
+            );
+
+
+            console.error(
+                "Model error:",
+                data.model_error
+            );
 
         }
 
@@ -852,12 +1134,15 @@ async function checkBackend() {
     } catch (error) {
 
         console.error(
-            "Backend connection error:",
+            "Could not connect to backend:",
             error
         );
 
-        statusText.textContent =
-            "BACKEND ERROR";
+
+        setStatus(
+            "Backend unavailable",
+            false
+        );
 
     }
 
@@ -865,9 +1150,16 @@ async function checkBackend() {
 
 
 // ============================================================
-// START APPLICATION
+// START STATUS CHECK
 // ============================================================
 
+checkBackendStatus();
 
 
-checkBackend();
+// ============================================================
+// GLOBAL DEBUG MESSAGE
+// ============================================================
+
+console.log(
+    "Marine AI app.js initialized successfully."
+);
