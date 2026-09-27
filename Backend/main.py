@@ -1,17 +1,18 @@
 from pathlib import Path
+from io import BytesIO
 import base64
-import io
 import time
 
-import torch
-from PIL import Image
-
-from fastapi import FastAPI, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+
+from PIL import Image, ImageDraw
 
 from ultralytics import YOLO
+
+from .survey_simulator import get_demo_survey_data
 
 
 # ============================================================
@@ -19,23 +20,17 @@ from ultralytics import YOLO
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+BACKEND_DIR = BASE_DIR / "Backend"
 FRONTEND_DIR = BASE_DIR / "Frontend"
 
+# Your trained YOLO models
 MODEL_CANDIDATES = [
-    BASE_DIR / "runs" / "detect" / "train-2" / "weights" / "best.pt",
     BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt",
-    BASE_DIR / "Frontend" / "best.pt",
+    BASE_DIR / "runs" / "detect" / "train-2" / "weights" / "best.pt",
+    BASE_DIR / "yolov11n.pt",
+    BASE_DIR / "Training" / "yolov11n.pt",
 ]
-
-
-# ============================================================
-# YOLO SETTINGS
-# ============================================================
-
-DEFAULT_CONFIDENCE = 0.25
-INFERENCE_SIZE = 320
-MAX_DETECTIONS = 20
-MAX_IMAGE_DIMENSION = 1600
 
 
 # ============================================================
@@ -43,8 +38,8 @@ MAX_IMAGE_DIMENSION = 1600
 # ============================================================
 
 app = FastAPI(
-    title="Marine AI - Underwater Debris Detection",
-    description="YOLO based underwater debris detection system",
+    title="Marine AI",
+    description="Underwater Object Detection using YOLO",
     version="1.0.0",
 )
 
@@ -63,170 +58,194 @@ app.add_middleware(
 
 
 # ============================================================
-# MODEL
+# SERVE FRONTEND
+# ============================================================
+
+if not FRONTEND_DIR.exists():
+    print("WARNING: Frontend directory not found:")
+    print(FRONTEND_DIR)
+
+
+app.mount(
+    "/static",
+    StaticFiles(directory=str(FRONTEND_DIR)),
+    name="static",
+)
+
+
+@app.get("/")
+async def serve_frontend():
+    """
+    Serve the main frontend page.
+    """
+
+    return FileResponse(
+        str(FRONTEND_DIR / "index.html")
+    )
+
+
+@app.get("/app.js")
+async def serve_javascript():
+    """
+    Direct compatibility route.
+    """
+
+    return FileResponse(
+        str(FRONTEND_DIR / "app.js"),
+        media_type="application/javascript",
+    )
+
+
+@app.get("/style.css")
+async def serve_css():
+    """
+    Direct compatibility route.
+    """
+
+    return FileResponse(
+        str(FRONTEND_DIR / "style.css"),
+        media_type="text/css",
+    )
+
+
+# ============================================================
+# FIND YOLO MODEL
+# ============================================================
+
+MODEL_PATH = None
+
+for candidate in MODEL_CANDIDATES:
+
+    if candidate.exists():
+
+        MODEL_PATH = candidate
+
+        break
+
+
+# ============================================================
+# LOAD YOLO MODEL
 # ============================================================
 
 model = None
-model_path = None
 model_error = None
 
-
-def load_model():
-    global model
-    global model_path
-    global model_error
-
-    model = None
-    model_path = None
-    model_error = None
-
-    for candidate in MODEL_CANDIDATES:
-
-        if candidate.exists():
-
-            try:
-                print("=" * 60)
-                print(f"Loading YOLO model from:")
-                print(candidate)
-                print("=" * 60)
-
-                model = YOLO(str(candidate))
-
-                model_path = candidate
-
-                print("YOLO model loaded successfully.")
-                print(f"Model path: {model_path}")
-                print("=" * 60)
-
-                return
-
-            except Exception as error:
-
-                model_error = str(error)
-
-                print("Failed to load model:")
-                print(error)
-
-    model_error = (
-        "Trained YOLO model was not found. "
-        "Expected best.pt in runs/detect/train-2/weights/"
-    )
-
-    print(model_error)
-
-
-load_model()
-
-
-# ============================================================
-# CLASS NAMES
-# ============================================================
-
-CLASS_NAMES = {
-    0: "crab_pot",
-    1: "submarine_pipeline",
-    2: "shipwreck",
-    3: "ghost_net",
-    4: "mine_cylinder",
-}
-
-
-# ============================================================
-# HOME PAGE
-# ============================================================
-
-@app.get("/")
-async def home():
-
-    index_file = FRONTEND_DIR / "index.html"
-
-    if not index_file.exists():
-
-        return JSONResponse(
-            status_code=404,
-            content={
-                "error": "Frontend index.html not found."
-            },
-        )
-
-    return FileResponse(index_file)
-
-
-# ============================================================
-# STATIC FRONTEND FILES
-# ============================================================
-
-if FRONTEND_DIR.exists():
-
-    app.mount(
-        "/static",
-        StaticFiles(directory=FRONTEND_DIR),
-        name="static",
-    )
-
-
-# ============================================================
-# STATUS API
-# ============================================================
-
-@app.get("/api/status")
-async def status():
-
-    classes = {
-        str(key): value
-        for key, value in CLASS_NAMES.items()
-    }
-
-    return {
-        "model_ready": model is not None,
-        "model_path": str(model_path) if model_path else None,
-        "model_error": model_error,
-        "confidence_threshold": DEFAULT_CONFIDENCE,
-        "inference_size": INFERENCE_SIZE,
-        "classes": classes,
-    }
-
-
-# ============================================================
-# IMAGE VALIDATION
-# ============================================================
-
-def is_valid_image(image_bytes):
+if MODEL_PATH is not None:
 
     try:
 
-        image = Image.open(
-            io.BytesIO(image_bytes)
-        )
+        print("=" * 60)
+        print("LOADING YOLO MODEL")
+        print("=" * 60)
 
-        image.verify()
+        print(f"Model path: {MODEL_PATH}")
 
-        return True
+        model = YOLO(str(MODEL_PATH))
 
-    except Exception:
+        print("YOLO MODEL LOADED SUCCESSFULLY")
 
-        return False
+        print("=" * 60)
+
+    except Exception as exc:
+
+        model_error = str(exc)
+
+        print("ERROR LOADING YOLO MODEL:")
+        print(model_error)
+
+else:
+
+    model_error = "No YOLO model file found."
+
+    print("=" * 60)
+    print("ERROR: YOLO MODEL NOT FOUND")
+    print("=" * 60)
+
+    for candidate in MODEL_CANDIDATES:
+        print(candidate)
+
+    print("=" * 60)
 
 
 # ============================================================
-# IMAGE PREPARATION
+# DEMO SURVEY POINT
 # ============================================================
 
-def prepare_image(image):
+demo_point_number = 0
 
-    image.thumbnail(
-        (
-            MAX_IMAGE_DIMENSION,
-            MAX_IMAGE_DIMENSION
-        ),
-        Image.Resampling.LANCZOS,
+
+# ============================================================
+# IMAGE TO BASE64
+# ============================================================
+
+def image_to_base64(image: Image.Image) -> str:
+
+    buffer = BytesIO()
+
+    image.save(
+        buffer,
+        format="JPEG",
+        quality=90,
     )
 
-    return image
+    encoded = base64.b64encode(
+        buffer.getvalue()
+    ).decode("utf-8")
+
+    return "data:image/jpeg;base64," + encoded
 
 
 # ============================================================
-# YOLO DETECTION
+# HEALTH CHECK
+# ============================================================
+
+@app.get("/api/health")
+async def health():
+
+    return {
+        "success": True,
+        "status": "online",
+        "model_loaded": model is not None,
+        "model_path": (
+            str(MODEL_PATH)
+            if MODEL_PATH
+            else None
+        ),
+        "model_exists": (
+            MODEL_PATH.exists()
+            if MODEL_PATH
+            else False
+        ),
+        "model_error": model_error,
+    }
+
+
+# ============================================================
+# MODEL STATUS
+# ============================================================
+
+@app.get("/api/model-status")
+async def model_status():
+
+    return {
+        "success": True,
+        "model_loaded": model is not None,
+        "model_path": (
+            str(MODEL_PATH)
+            if MODEL_PATH
+            else None
+        ),
+        "model_exists": (
+            MODEL_PATH.exists()
+            if MODEL_PATH
+            else False
+        ),
+        "model_error": model_error,
+    }
+
+
+# ============================================================
+# DETECTION API
 # ============================================================
 
 @app.post("/api/detect")
@@ -234,8 +253,7 @@ async def detect(
     file: UploadFile = File(...)
 ):
 
-    start_time = time.perf_counter()
-
+    global demo_point_number
 
     # --------------------------------------------------------
     # CHECK MODEL
@@ -248,7 +266,54 @@ async def detect(
             content={
                 "success": False,
                 "error": "YOLO model is not loaded.",
+                "model_loaded": False,
+                "model_path": (
+                    str(MODEL_PATH)
+                    if MODEL_PATH
+                    else None
+                ),
                 "model_error": model_error,
+            },
+        )
+
+
+    # --------------------------------------------------------
+    # CHECK FILE
+    # --------------------------------------------------------
+
+    if file is None or not file.filename:
+
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "error": "No image file was uploaded.",
+            },
+        )
+
+
+    # --------------------------------------------------------
+    # CHECK IMAGE TYPE
+    # --------------------------------------------------------
+
+    allowed_types = {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/bmp",
+    }
+
+    if file.content_type not in allowed_types:
+
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "error": (
+                    "Please upload a valid image "
+                    "(JPG, PNG, WEBP or BMP)."
+                ),
             },
         )
 
@@ -259,224 +324,247 @@ async def detect(
 
     try:
 
-        image_bytes = await file.read()
+        file_bytes = await file.read()
 
-    except Exception as error:
-
-        return JSONResponse(
-            status_code=400,
-            content={
-                "success": False,
-                "error": f"Could not read uploaded file: {error}",
-            },
-        )
-
-
-    if not image_bytes:
-
-        return JSONResponse(
-            status_code=400,
-            content={
-                "success": False,
-                "error": "Uploaded file is empty.",
-            },
-        )
-
-
-    # --------------------------------------------------------
-    # VALIDATE IMAGE
-    # --------------------------------------------------------
-
-    if not is_valid_image(image_bytes):
-
-        return JSONResponse(
-            status_code=400,
-            content={
-                "success": False,
-                "error": "Uploaded file is not a valid image.",
-            },
-        )
-
-
-    # --------------------------------------------------------
-    # OPEN IMAGE
-    # --------------------------------------------------------
-
-    try:
-
-        image = Image.open(
-            io.BytesIO(image_bytes)
+        original_image = Image.open(
+            BytesIO(file_bytes)
         ).convert("RGB")
 
-    except Exception as error:
+    except Exception as exc:
 
         return JSONResponse(
             status_code=400,
             content={
                 "success": False,
-                "error": f"Could not open image: {error}",
+                "error": "Could not read uploaded image.",
+                "details": str(exc),
             },
         )
 
 
-    # Keep original dimensions
-    original_width, original_height = image.size
+    # --------------------------------------------------------
+    # GENERATE DEMO GPS + DEPTH
+    # --------------------------------------------------------
 
+    survey_data = get_demo_survey_data(
+        demo_point_number
+    )
 
-    # Resize very large images
-    image = prepare_image(image)
+    demo_point_number += 1
 
 
     # --------------------------------------------------------
     # RUN YOLO
     # --------------------------------------------------------
 
+    start_time = time.perf_counter()
+
     try:
 
-        print("=" * 60)
-        print("Starting YOLO detection...")
-        print(f"File: {file.filename}")
-        print(
-            f"Image size: "
-            f"{image.width} x {image.height}"
+        results = model.predict(
+            source=original_image,
+            conf=0.25,
+            verbose=False,
         )
 
-        with torch.inference_mode():
-
-            results = model.predict(
-                source=image,
-                conf=DEFAULT_CONFIDENCE,
-                imgsz=INFERENCE_SIZE,
-                max_det=MAX_DETECTIONS,
-                device="cpu",
-                verbose=False,
-            )
-
-        print("YOLO detection completed.")
-
-    except Exception as error:
-
-        print("=" * 60)
-        print("YOLO inference error:")
-        print(error)
-        print("=" * 60)
+    except Exception as exc:
 
         return JSONResponse(
             status_code=500,
             content={
                 "success": False,
-                "error": f"YOLO inference failed: {error}",
+                "error": "YOLO inference failed.",
+                "details": str(exc),
             },
         )
 
+    inference_time_ms = (
+        time.perf_counter() - start_time
+    ) * 1000
+
 
     # --------------------------------------------------------
-    # GET YOLO RESULT
+    # PROCESS RESULTS
     # --------------------------------------------------------
-
-    result = results[0]
 
     detections = []
 
+    annotated_image = original_image.copy()
 
-    # --------------------------------------------------------
-    # EXTRACT DETECTIONS
-    # --------------------------------------------------------
+    draw = ImageDraw.Draw(
+        annotated_image
+    )
 
-    if result.boxes is not None:
+
+    for result in results:
 
         boxes = result.boxes
 
-        for i in range(len(boxes)):
+        if boxes is None:
+            continue
+
+
+        for box in boxes:
 
             try:
 
                 class_id = int(
-                    boxes.cls[i].item()
+                    box.cls[0].item()
                 )
 
                 confidence = float(
-                    boxes.conf[i].item()
+                    box.conf[0].item()
                 )
 
-                xyxy = (
-                    boxes.xyxy[i]
-                    .cpu()
-                    .numpy()
-                    .tolist()
+                coordinates = box.xyxy[0].tolist()
+
+            except Exception:
+
+                continue
+
+
+            # ------------------------------------------------
+            # CLASS NAME
+            # ------------------------------------------------
+
+            class_name = str(
+                class_id
+            )
+
+            try:
+
+                if hasattr(model, "names"):
+
+                    if isinstance(
+                        model.names,
+                        dict
+                    ):
+
+                        class_name = model.names.get(
+                            class_id,
+                            str(class_id),
+                        )
+
+                    elif (
+                        isinstance(
+                            model.names,
+                            list
+                        )
+                        and class_id < len(model.names)
+                    ):
+
+                        class_name = model.names[
+                            class_id
+                        ]
+
+            except Exception:
+
+                class_name = str(class_id)
+
+
+            # ------------------------------------------------
+            # BOUNDING BOX
+            # ------------------------------------------------
+
+            x1, y1, x2, y2 = coordinates
+
+            x1 = int(x1)
+            y1 = int(y1)
+            x2 = int(x2)
+            y2 = int(y2)
+
+
+            # ------------------------------------------------
+            # DRAW BOX
+            # ------------------------------------------------
+
+            draw.rectangle(
+                [
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                ],
+                outline="red",
+                width=3,
+            )
+
+
+            label = (
+                f"{class_name} "
+                f"{confidence * 100:.1f}%"
+            )
+
+
+            # Draw label background
+
+            try:
+
+                text_bbox = draw.textbbox(
+                    (x1, y1),
+                    label,
                 )
 
-                class_name = CLASS_NAMES.get(
-                    class_id,
-                    str(class_id)
+                draw.rectangle(
+                    text_bbox,
+                    fill="red",
                 )
 
+            except Exception:
 
-                detection = {
+                pass
+
+
+            draw.text(
+                (x1, y1),
+                label,
+                fill="white",
+            )
+
+
+            # ------------------------------------------------
+            # SAVE DETECTION
+            # ------------------------------------------------
+
+            detections.append(
+                {
                     "class_id": class_id,
-
                     "class_name": class_name,
-
-                    "confidence": confidence,
-
-                    "confidence_percent": (
-                        confidence * 100
+                    "confidence": round(
+                        confidence,
+                        4,
                     ),
-
-                    "box": {
-                        "x1": float(xyxy[0]),
-                        "y1": float(xyxy[1]),
-                        "x2": float(xyxy[2]),
-                        "y2": float(xyxy[3]),
+                    "confidence_percent": round(
+                        confidence * 100,
+                        2,
+                    ),
+                    "bbox": {
+                        "x1": x1,
+                        "y1": y1,
+                        "x2": x2,
+                        "y2": y2,
                     },
                 }
+            )
 
 
-                detections.append(detection)
+    # ========================================================
+    # STATISTICS
+    # ========================================================
 
-
-            except Exception as error:
-
-                print(
-                    "Could not process detection:"
-                )
-
-                print(error)
-
-
-    # --------------------------------------------------------
-    # DETECTION COUNT
-    # --------------------------------------------------------
-
-    detection_count = len(detections)
-
-
-    print("=" * 60)
-    print(
-        f"Detections found: {detection_count}"
+    object_count = len(
+        detections
     )
 
 
-    for detection in detections:
-
-        print(
-            f"{detection['class_name']} "
-            f"{detection['confidence_percent']:.2f}%"
-        )
-
-
-    # --------------------------------------------------------
-    # AVERAGE CONFIDENCE
-    # --------------------------------------------------------
-
-    if detections:
+    if object_count > 0:
 
         average_confidence = (
             sum(
-                detection["confidence"]
-                for detection in detections
+                item["confidence"]
+                for item in detections
             )
-            / len(detections)
+            / object_count
         )
 
     else:
@@ -484,206 +572,111 @@ async def detect(
         average_confidence = 0.0
 
 
-    average_confidence_percent = (
-        average_confidence * 100
+    # ========================================================
+    # ENCODE RESULT IMAGE
+    # ========================================================
+
+    result_image_base64 = image_to_base64(
+        annotated_image
     )
 
 
-    # --------------------------------------------------------
-    # CREATE ANNOTATED IMAGE
-    # --------------------------------------------------------
-    #
-    # THIS IS THE IMPORTANT PART.
-    #
-    # YOLO draws the bounding boxes directly onto
-    # the image using result.plot().
-    #
-
-    try:
-
-        print("Creating annotated YOLO image...")
-
-        plotted_image = result.plot(
-            labels=True,
-            boxes=True,
-            conf=True,
-        )
-
-
-        # Ultralytics returns BGR.
-        # Convert BGR -> RGB.
-
-        plotted_image_rgb = (
-            plotted_image[:, :, ::-1]
-        )
-
-
-        annotated_pil = Image.fromarray(
-            plotted_image_rgb
-        )
-
-
-        # Compress image into memory
-
-        output_buffer = io.BytesIO()
-
-
-        annotated_pil.save(
-            output_buffer,
-            format="JPEG",
-            quality=90,
-            optimize=True,
-        )
-
-
-        # Convert image to Base64
-
-        encoded_image = base64.b64encode(
-            output_buffer.getvalue()
-        ).decode("utf-8")
-
-
-        # IMPORTANT:
-        # This is already a complete image URL.
-        #
-        # Frontend should directly use:
-        # resultImage.src = annotated_image
-
-        result_image = (
-            "data:image/jpeg;base64,"
-            + encoded_image
-        )
-
-
-        print(
-            "Annotated YOLO image created successfully."
-        )
-
-        print(
-            f"Encoded image length: "
-            f"{len(result_image)}"
-        )
-
-
-    except Exception as error:
-
-        print("=" * 60)
-        print("Could not create annotated image:")
-        print(error)
-        print("=" * 60)
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": (
-                    "Could not create "
-                    f"result image: {error}"
-                ),
-            },
-        )
-
-
-    # --------------------------------------------------------
-    # INFERENCE TIME
-    # --------------------------------------------------------
-
-    inference_time_ms = (
-        time.perf_counter() - start_time
-    ) * 1000
-
-
-    print(
-        f"Inference time: "
-        f"{inference_time_ms:.2f} ms"
-    )
-
-    print("=" * 60)
-
-
-    # --------------------------------------------------------
-    # RETURN RESPONSE
-    # --------------------------------------------------------
+    # ========================================================
+    # FINAL RESPONSE
+    # ========================================================
 
     return {
-
         "success": True,
 
         "filename": file.filename,
 
-        "detection_count": detection_count,
+        "model_loaded": True,
+
+        "model_path": str(
+            MODEL_PATH
+        ),
+
+        "object_count": object_count,
+
+        "objects": object_count,
 
         "detections": detections,
 
-        "average_confidence": (
-            average_confidence
+        "inference_time_ms": round(
+            inference_time_ms,
+            2,
         ),
 
-        "average_confidence_percent": (
-            average_confidence_percent
+        "average_confidence": round(
+            average_confidence,
+            4,
         ),
 
-        "inference_time_ms": (
-            inference_time_ms
+        "average_confidence_percent": round(
+            average_confidence * 100,
+            2,
         ),
 
-        "original_width": original_width,
+        "result_image": result_image_base64,
 
-        "original_height": original_height,
+        "image": result_image_base64,
 
-        "processed_width": image.width,
+        # IMPORTANT:
+        # This is the simulated survey metadata.
+        "survey": survey_data,
 
-        "processed_height": image.height,
+        "gps": {
+            "latitude": survey_data[
+                "latitude"
+            ],
+            "longitude": survey_data[
+                "longitude"
+            ],
+            "source": "demo_simulation",
+        },
 
-        "confidence_threshold": (
-            DEFAULT_CONFIDENCE
-        ),
+        "depth": {
+            "depth_m": survey_data[
+                "depth_m"
+            ],
+            "source": "demo_simulation",
+        },
 
-        "model_path": str(model_path),
+        "gps_source": "demo_simulation",
 
-        # Main result image
-        "annotated_image": result_image,
-
-        # Extra names for frontend compatibility
-        "result_image": result_image,
-
-        "image": result_image,
+        "depth_source": "demo_simulation",
     }
 
 
 # ============================================================
-# STARTUP INFORMATION
+# RUN INFORMATION
 # ============================================================
 
-@app.on_event("startup")
-async def startup_event():
+@app.get("/api/info")
+async def info():
 
-    print()
-    print("=" * 60)
-    print(
-        "Marine AI Underwater "
-        "Debris Detection API"
-    )
-    print("=" * 60)
+    return {
+        "project": "Marine AI",
+        "description": (
+            "Underwater Object Detection "
+            "using YOLO"
+        ),
 
-    print(
-        f"Model ready: "
-        f"{model is not None}"
-    )
+        "frontend": str(
+            FRONTEND_DIR
+        ),
 
-    print(
-        f"Model path: "
-        f"{model_path}"
-    )
+        "model": (
+            str(MODEL_PATH)
+            if MODEL_PATH
+            else None
+        ),
 
-    print(
-        f"Inference size: "
-        f"{INFERENCE_SIZE}"
-    )
+        "model_loaded": model is not None,
 
-    print(
-        f"Confidence threshold: "
-        f"{DEFAULT_CONFIDENCE}"
-    )
+        "demo_mode": True,
 
-    print("=" * 60)
+        "gps_source": "demo_simulation",
+
+        "depth_source": "demo_simulation",
+    }

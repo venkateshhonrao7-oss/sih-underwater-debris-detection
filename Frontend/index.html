@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
 
     <meta
@@ -10,156 +8,54 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>
-        Marine AI | SIH26057
-    </title>
+    <title>Marine AI | Underwater Object Detection</title>
 
-    <!-- IMPORTANT:
-         CSS is inside /static/
-    -->
-    <link
-        rel="stylesheet"
-        href="/static/style.css"
-    >
-
+    <link rel="stylesheet" href="style.css">
 </head>
-
 
 <body>
 
-    <!-- =====================================================
-         NAVBAR
-    ====================================================== -->
+    <div class="app-container">
 
-    <header class="navbar">
-
-        <div class="brand">
-
-            <div class="brand-icon">
-                🌊
-            </div>
+        <!-- =========================================================
+             HEADER
+        ========================================================== -->
+        <header class="header">
 
             <div>
+                <h1>Marine AI</h1>
 
-                <div class="brand-title">
-                    MARINE AI
-                </div>
-
-                <div class="brand-subtitle">
-                    SIH26057 • UNDERWATER DETECTION
-                </div>
-
+                <p class="subtitle">
+                    Underwater Object Detection using YOLO
+                </p>
             </div>
 
-        </div>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                SYSTEM ONLINE
+            </div>
+
+        </header>
 
 
-        <div class="system-status">
+        <!-- =========================================================
+             UPLOAD SECTION
+        ========================================================== -->
+        <section class="card upload-section">
 
-            <span
-                id="statusDot"
-                class="status-dot"
-            ></span>
-
-            <span id="statusText">
-                Checking AI model...
-            </span>
-
-        </div>
-
-    </header>
-
-
-
-    <!-- =====================================================
-         MAIN
-    ====================================================== -->
-
-    <main class="container">
-
-
-        <!-- HERO -->
-
-        <section class="hero">
-
-            <div>
-
-                <div class="eyebrow">
-                    ARTIFICIAL INTELLIGENCE
-                    • COMPUTER VISION
-                </div>
-
-                <h1>
-                    Underwater Object
-                    <span>Detection</span>
-                </h1>
+            <div class="section-header">
+                <h2>Upload Side-Scan Sonar Image</h2>
 
                 <p>
-                    Upload an underwater or sonar image
-                    and let your trained YOLO model
-                    identify marine objects and debris.
+                    Upload a sonar image to detect underwater objects
+                    using the trained YOLO model.
                 </p>
-
             </div>
 
-
-            <div class="model-card">
-
-                <div class="model-label">
-                    ACTIVE MODEL
-                </div>
-
-                <div class="model-name">
-                    YOLO
-                </div>
-
-                <div class="model-path">
-                    train-2 / best.pt
-                </div>
-
-                <div class="model-live">
-                    ● REAL-TIME INFERENCE
-                </div>
-
-            </div>
-
-        </section>
-
-
-
-        <!-- =================================================
-             UPLOAD SECTION
-        ================================================== -->
-
-        <section class="panel">
-
-            <div class="section-heading">
-
-                <div>
-
-                    <div class="section-number">
-                        01
-                    </div>
-
-                    <h2>
-                        Analyze Image
-                    </h2>
-
-                    <p>
-                        Upload a test image to run
-                        your trained YOLO model.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <!-- DROPZONE -->
 
             <div
-                id="dropZone"
-                class="drop-zone"
+                id="dropzone"
+                class="dropzone"
             >
 
                 <div class="upload-icon">
@@ -167,182 +63,236 @@
                 </div>
 
                 <h3>
-                    Drop your image here
+                    Drop sonar image here
                 </h3>
 
-                <p>
-                    or click to browse
+                <p class="or-text">
+                    or
                 </p>
 
-                <button
-                    id="browseButton"
-                    class="secondary-button"
-                    type="button"
+                <label
+                    for="fileInput"
+                    class="choose-button"
                 >
                     Choose Image
-                </button>
-
-                <div class="file-types">
-                    JPG • JPEG • PNG • WEBP
-                </div>
+                </label>
 
                 <input
                     id="fileInput"
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/*"
                     hidden
                 >
 
-            </div>
-
-
-            <!-- SELECTED IMAGE -->
-
-            <div
-                id="selectedImageSection"
-                class="selected-section hidden"
-            >
-
-                <div class="section-title-row">
-
-                    <h3>
-                        Selected Image
-                    </h3>
-
-                    <button
-                        id="removeButton"
-                        class="remove-button"
-                        type="button"
-                    >
-                        Remove
-                    </button>
-
-                </div>
-
-
-                <div class="image-preview-container">
-
-                    <img
-                        id="previewImage"
-                        class="preview-image"
-                        alt="Selected underwater image"
-                    >
-
-                </div>
-
-                <div
+                <p
                     id="fileName"
                     class="file-name"
                 >
-                </div>
+                    No image selected
+                </p>
 
             </div>
 
 
+            <div class="button-row">
 
-            <!-- =================================================
-                 CONFIDENCE
-            ================================================== -->
-
-            
-
-
-
-            <!-- DETECT BUTTON -->
-
-            <button
-                id="detectButton"
-                class="detect-button"
-                type="button"
-                disabled
-            >
-
-                <span id="detectButtonText">
+                <button
+                    id="detectButton"
+                    class="primary-button"
+                    disabled
+                >
                     Detect Objects
-                </span>
+                </button>
 
-            </button>
+                <button
+                    id="removeButton"
+                    class="secondary-button"
+                >
+                    Remove Image
+                </button>
 
-
-            <!-- ERROR -->
+            </div>
 
             <div
-                id="errorBox"
-                class="error-box hidden"
+                id="errorMessage"
+                class="error-message hidden"
             ></div>
 
         </section>
 
 
+        <!-- =========================================================
+             RESULT SECTION
+        ========================================================== -->
+        <section class="card result-section">
 
-        <!-- =================================================
-             RESULTS
-        ================================================== -->
+            <div class="section-header">
 
-        <section
-            id="resultsSection"
-            class="panel results-panel hidden"
-        >
-
-            <div class="results-header">
-
-                <div>
-
-                    <div class="section-number">
-                        02
-                    </div>
+                <div class="result-title-row">
 
                     <h2>
-                        Detection Results
+                        Detection Result
                     </h2>
 
+                    <span class="demo-badge">
+                        DEMO SIMULATION
+                    </span>
+
                 </div>
 
+                <p>
+                    YOLO object detection result
+                </p>
+
+            </div>
+
+
+            <!-- Result image -->
+            <div class="result-image-container">
 
                 <div
-                    id="detectionCount"
-                    class="count-badge"
+                    id="resultPlaceholder"
+                    class="result-placeholder"
                 >
-                    0 objects
+                    Detection result will appear here
+                </div>
+
+                <img
+                    id="resultImage"
+                    class="result-image hidden"
+                    alt="Detection result"
+                >
+
+            </div>
+
+
+            <!-- =====================================================
+                 SURVEY INFORMATION
+            ====================================================== -->
+            <div class="survey-section">
+
+                <div class="survey-header">
+
+                    <div>
+                        <h2>
+                            Survey Information
+                        </h2>
+
+                        <p>
+                            Simulated navigation and depth data
+                        </p>
+                    </div>
+
+                    <span class="demo-badge">
+                        DEMO SIMULATION
+                    </span>
+
+                </div>
+
+
+                <div class="survey-grid">
+
+                    <!-- GPS -->
+                    <div class="survey-card">
+
+                        <div class="survey-label">
+                            GPS Latitude
+                        </div>
+
+                        <div
+                            id="latitude"
+                            class="survey-value"
+                        >
+                            --
+                        </div>
+
+                        <div class="survey-unit">
+                            degrees
+                        </div>
+
+                    </div>
+
+
+                    <div class="survey-card">
+
+                        <div class="survey-label">
+                            GPS Longitude
+                        </div>
+
+                        <div
+                            id="longitude"
+                            class="survey-value"
+                        >
+                            --
+                        </div>
+
+                        <div class="survey-unit">
+                            degrees
+                        </div>
+
+                    </div>
+
+
+                    <!-- Depth -->
+                    <div class="survey-card">
+
+                        <div class="survey-label">
+                            Depth
+                        </div>
+
+                        <div
+                            id="depth"
+                            class="survey-value"
+                        >
+                            --
+                        </div>
+
+                        <div class="survey-unit">
+                            metres
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="source-row">
+
+                    <div>
+                        GPS Source:
+                        <strong>
+                            DEMO SIMULATION
+                        </strong>
+                    </div>
+
+                    <div>
+                        Depth Source:
+                        <strong>
+                            DEMO SIMULATION
+                        </strong>
+                    </div>
+
                 </div>
 
             </div>
 
 
+            <!-- =====================================================
+                 DETECTIONS
+            ====================================================== -->
+            <div class="detections-section">
 
-            <div class="results-grid">
+                <h2>
+                    Detected Objects
+                </h2>
 
+                <div
+                    id="detectionList"
+                    class="detection-list"
+                >
 
-                <!-- ANNOTATED IMAGE -->
-
-                <div class="result-image-card">
-
-                    <div class="result-card-title">
-                        YOLO Detection
-                    </div>
-
-                    <img
-                        id="resultImage"
-                        class="result-image"
-                        alt="YOLO detection result"
-                    >
-
-                </div>
-
-
-
-                <!-- DETECTION LIST -->
-
-                <div class="detection-card">
-
-                    <div class="result-card-title">
-                        Detected Objects
-                    </div>
-
-                    <div
-                        id="detectionList"
-                        class="detection-list"
-                    >
+                    <div class="empty-detection">
+                        No objects detected.
                     </div>
 
                 </div>
@@ -350,20 +300,20 @@
             </div>
 
 
+            <!-- =====================================================
+                 STATISTICS
+            ====================================================== -->
+            <div class="stats-grid">
 
-            <!-- SUMMARY -->
+                <div class="stat-card">
 
-            <div class="summary-grid">
-
-                <div class="summary-card">
-
-                    <div class="summary-label">
+                    <div class="stat-label">
                         OBJECTS
                     </div>
 
                     <div
-                        id="summaryCount"
-                        class="summary-value"
+                        id="objectCount"
+                        class="stat-value"
                     >
                         0
                     </div>
@@ -371,33 +321,33 @@
                 </div>
 
 
-                <div class="summary-card">
+                <div class="stat-card">
 
-                    <div class="summary-label">
+                    <div class="stat-label">
                         INFERENCE
                     </div>
 
                     <div
                         id="inferenceTime"
-                        class="summary-value"
+                        class="stat-value"
                     >
-                        -
+                        --
                     </div>
 
                 </div>
 
 
-                <div class="summary-card">
+                <div class="stat-card">
 
-                    <div class="summary-label">
+                    <div class="stat-label">
                         CONFIDENCE
                     </div>
 
                     <div
-                        id="summaryConfidence"
-                        class="summary-value"
+                        id="confidence"
+                        class="stat-value"
                     >
-                        25%
+                        0.0%
                     </div>
 
                 </div>
@@ -406,31 +356,34 @@
 
         </section>
 
-    </main>
+
+        <!-- =========================================================
+             FOOTER
+        ========================================================== -->
+        <footer class="footer">
+
+            <span>
+                SIH26057
+            </span>
+
+            <span>•</span>
+
+            <span>
+                Underwater Object Detection
+            </span>
+
+            <span>•</span>
+
+            <span>
+                YOLO Deep Learning
+            </span>
+
+        </footer>
+
+    </div>
 
 
-
-    <!-- =====================================================
-         FOOTER
-    ====================================================== -->
-
-    <footer>
-
-        SIH26057 • Underwater Object Detection
-        • YOLO Deep Learning
-
-    </footer>
-
-
-
-    <!-- IMPORTANT:
-         JavaScript is inside /static/
-    -->
-
-    <script
-        src="/static/app.js"
-    ></script>
+    <script src="app.js"></script>
 
 </body>
-
 </html>

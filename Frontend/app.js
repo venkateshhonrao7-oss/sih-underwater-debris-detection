@@ -1,219 +1,104 @@
-// ============================================================
-// MARINE AI - UNDERWATER DEBRIS DETECTION
-// Frontend JavaScript
-// ============================================================
+/* ================================================================
+   MARINE AI
+   Frontend JavaScript
+================================================================ */
 
 
-// ============================================================
-// ELEMENTS
-// ============================================================
+/* ================================================================
+   ELEMENTS
+================================================================ */
 
-const fileInput = document.getElementById("fileInput");
-const dropZone = document.getElementById("dropZone");
-const browseButton = document.getElementById("browseButton");
+const fileInput =
+    document.getElementById("fileInput");
 
-const selectedImageSection =
-    document.getElementById("selectedImageSection");
-
-const previewImage =
-    document.getElementById("previewImage");
+const dropzone =
+    document.getElementById("dropzone");
 
 const fileName =
     document.getElementById("fileName");
 
-const removeButton =
-    document.getElementById("removeButton");
-
 const detectButton =
     document.getElementById("detectButton");
 
-const detectButtonText =
-    document.getElementById("detectButtonText");
-
-const errorBox =
-    document.getElementById("errorBox");
-
-const resultsSection =
-    document.getElementById("resultsSection");
+const removeButton =
+    document.getElementById("removeButton");
 
 const resultImage =
     document.getElementById("resultImage");
 
-const detectionCount =
-    document.getElementById("detectionCount");
+const resultPlaceholder =
+    document.getElementById("resultPlaceholder");
 
 const detectionList =
     document.getElementById("detectionList");
 
-const summaryCount =
-    document.getElementById("summaryCount");
+const objectCount =
+    document.getElementById("objectCount");
 
 const inferenceTime =
     document.getElementById("inferenceTime");
 
-const summaryConfidence =
-    document.getElementById("summaryConfidence");
+const confidence =
+    document.getElementById("confidence");
 
-const statusText =
-    document.getElementById("statusText");
+const errorMessage =
+    document.getElementById("errorMessage");
 
-const statusDot =
-    document.getElementById("statusDot");
+const latitude =
+    document.getElementById("latitude");
 
+const longitude =
+    document.getElementById("longitude");
 
-// ============================================================
-// BACKEND URL
-// ============================================================
-//
-// Because the frontend is served by FastAPI itself,
-// we can use the relative API path.
-//
-// Local:
-// http://127.0.0.1:8000/api/detect
-//
-// Render:
-// https://your-render-url/api/detect
-//
-
-const API_BASE_URL = "";
+const depth =
+    document.getElementById("depth");
 
 
-// ============================================================
-// SELECTED FILE
-// ============================================================
+/* ================================================================
+   STATE
+================================================================ */
 
 let selectedFile = null;
 
 
-// ============================================================
-// INITIALIZATION
-// ============================================================
-
-console.log("Marine AI frontend loaded.");
-
-
-// ============================================================
-// ERROR MESSAGE
-// ============================================================
+/* ================================================================
+   ERROR HANDLING
+================================================================ */
 
 function showError(message) {
 
-    if (!errorBox) {
-        console.error(message);
+    if (!errorMessage) {
         return;
     }
 
-    errorBox.textContent = message;
+    errorMessage.textContent = message;
 
-    errorBox.classList.remove("hidden");
-
+    errorMessage.classList.remove("hidden");
 }
 
-
-// ============================================================
-// CLEAR ERROR
-// ============================================================
 
 function clearError() {
 
-    if (!errorBox) {
+    if (!errorMessage) {
         return;
     }
 
-    errorBox.textContent = "";
+    errorMessage.textContent = "";
 
-    errorBox.classList.add("hidden");
-
+    errorMessage.classList.add("hidden");
 }
 
 
-// ============================================================
-// SET STATUS
-// ============================================================
-
-function setStatus(message, online = true) {
-
-    if (statusText) {
-        statusText.textContent = message;
-    }
-
-    if (statusDot) {
-
-        statusDot.classList.toggle(
-            "offline",
-            !online
-        );
-
-    }
-
-}
-
-
-// ============================================================
-// FORMAT CONFIDENCE
-// ============================================================
-
-function formatConfidence(value) {
-
-    let confidence = Number(value);
-
-    if (!Number.isFinite(confidence)) {
-        return "0.0%";
-    }
-
-    // Backend normally sends 0.89
-    // Convert to 89.0%
-
-    if (confidence <= 1) {
-        confidence = confidence * 100;
-    }
-
-    return confidence.toFixed(1) + "%";
-
-}
-
-
-// ============================================================
-// FORMAT TIME
-// ============================================================
-
-function formatInferenceTime(value) {
-
-    const time = Number(value);
-
-    if (!Number.isFinite(time)) {
-        return "--";
-    }
-
-    return Math.round(time) + " ms";
-
-}
-
-
-// ============================================================
-// SELECT IMAGE
-// ============================================================
+/* ================================================================
+   FILE SELECTION
+================================================================ */
 
 function selectImage(file) {
-
-    clearError();
 
     if (!file) {
         return;
     }
 
-
-    console.log(
-        "Selected file:",
-        file.name,
-        file.type,
-        file.size
-    );
-
-
-    // --------------------------------------------------------
-    // Check image type
-    // --------------------------------------------------------
 
     if (!file.type.startsWith("image/")) {
 
@@ -225,219 +110,121 @@ function selectImage(file) {
     }
 
 
-    // --------------------------------------------------------
-    // Store selected file
-    // --------------------------------------------------------
+    clearError();
 
     selectedFile = file;
 
 
-    // --------------------------------------------------------
-    // Show filename
-    // --------------------------------------------------------
-
     if (fileName) {
-        fileName.textContent = file.name;
+
+        fileName.textContent =
+            file.name;
     }
 
-
-    // --------------------------------------------------------
-    // Preview original image
-    // --------------------------------------------------------
-
-    const reader = new FileReader();
-
-
-    reader.onload = function (event) {
-
-        if (previewImage) {
-
-            previewImage.src =
-                event.target.result;
-
-            previewImage.removeAttribute(
-                "hidden"
-            );
-
-            previewImage.classList.remove(
-                "hidden"
-            );
-
-            previewImage.style.display =
-                "block";
-
-        }
-
-
-        console.log(
-            "Image successfully selected."
-        );
-
-    };
-
-
-    reader.onerror = function () {
-
-        showError(
-            "Could not read the selected image."
-        );
-
-    };
-
-
-    reader.readAsDataURL(file);
-
-
-    // --------------------------------------------------------
-    // Show selected image section
-    // --------------------------------------------------------
-
-    if (selectedImageSection) {
-
-        selectedImageSection.classList.remove(
-            "hidden"
-        );
-
-    }
-
-
-    // --------------------------------------------------------
-    // Enable detection button
-    // --------------------------------------------------------
 
     if (detectButton) {
 
         detectButton.disabled = false;
-
     }
 
 
-    // --------------------------------------------------------
-    // Hide previous results
-    // --------------------------------------------------------
+    /*
+       Show the selected image immediately.
+    */
 
-    if (resultsSection) {
+    const reader =
+        new FileReader();
 
-        resultsSection.classList.add(
+
+    reader.onload = function(event) {
+
+        if (!resultImage) {
+            return;
+        }
+
+        resultImage.src =
+            event.target.result;
+
+        resultImage.classList.remove(
             "hidden"
         );
 
-    }
+
+        if (resultPlaceholder) {
+
+            resultPlaceholder.classList.add(
+                "hidden"
+            );
+        }
+    };
 
 
-    if (resultImage) {
-
-        resultImage.removeAttribute(
-            "src"
-        );
-
-    }
-
-
-    console.log(
-        "Ready for detection."
-    );
-
+    reader.readAsDataURL(file);
 }
 
 
-// ============================================================
-// FILE INPUT
-// ============================================================
+/* ================================================================
+   FILE INPUT
+================================================================ */
 
 if (fileInput) {
 
     fileInput.addEventListener(
         "change",
-        function (event) {
-
-            const files =
-                event.target.files;
+        function() {
 
             if (
-                files &&
-                files.length > 0
+                this.files &&
+                this.files.length > 0
             ) {
 
                 selectImage(
-                    files[0]
+                    this.files[0]
                 );
-
             }
 
         }
     );
-
 }
 
 
-// ============================================================
-// BROWSE BUTTON
-// ============================================================
+/* ================================================================
+   DRAG AND DROP
+================================================================ */
 
-if (browseButton) {
+if (dropzone) {
 
-    browseButton.addEventListener(
-        "click",
-        function () {
-
-            if (fileInput) {
-                fileInput.click();
-            }
-
-        }
-    );
-
-}
-
-
-// ============================================================
-// DRAG OVER
-// ============================================================
-
-if (dropZone) {
-
-    dropZone.addEventListener(
+    dropzone.addEventListener(
         "dragover",
-        function (event) {
+        function(event) {
 
             event.preventDefault();
 
-            dropZone.classList.add(
+            dropzone.classList.add(
                 "drag-over"
             );
-
         }
     );
 
 
-    // --------------------------------------------------------
-    // DRAG LEAVE
-    // --------------------------------------------------------
-
-    dropZone.addEventListener(
+    dropzone.addEventListener(
         "dragleave",
-        function () {
+        function() {
 
-            dropZone.classList.remove(
+            dropzone.classList.remove(
                 "drag-over"
             );
-
         }
     );
 
 
-    // --------------------------------------------------------
-    // DROP
-    // --------------------------------------------------------
-
-    dropZone.addEventListener(
+    dropzone.addEventListener(
         "drop",
-        function (event) {
+        function(event) {
 
             event.preventDefault();
 
-            dropZone.classList.remove(
+            dropzone.classList.remove(
                 "drag-over"
             );
 
@@ -454,180 +241,450 @@ if (dropZone) {
                 selectImage(
                     files[0]
                 );
-
             }
 
         }
     );
-
 }
 
 
-// ============================================================
-// REMOVE IMAGE
-// ============================================================
+/* ================================================================
+   FORMAT CONFIDENCE
+================================================================ */
+
+function formatConfidence(value) {
+
+    const number =
+        Number(value);
+
+
+    if (!Number.isFinite(number)) {
+
+        return "0.0%";
+    }
+
+
+    let percentage =
+        number;
+
+
+    /*
+       YOLO confidence may arrive as:
+       0.93
+       OR
+       93.0
+    */
+
+    if (percentage <= 1) {
+
+        percentage =
+            percentage * 100;
+    }
+
+
+    return (
+        percentage.toFixed(1)
+        + "%"
+    );
+}
+
+
+/* ================================================================
+   FORMAT INFERENCE TIME
+================================================================ */
+
+function formatInferenceTime(value) {
+
+    const time =
+        Number(value);
+
+
+    if (!Number.isFinite(time)) {
+
+        return "--";
+    }
+
+
+    return (
+        Math.round(time)
+        + " ms"
+    );
+}
+
+
+/* ================================================================
+   RESET RESULT
+================================================================ */
+
+function resetResults() {
+
+    if (resultImage) {
+
+        resultImage.src = "";
+
+        resultImage.classList.add(
+            "hidden"
+        );
+    }
+
+
+    if (resultPlaceholder) {
+
+        resultPlaceholder.classList.remove(
+            "hidden"
+        );
+    }
+
+
+    if (detectionList) {
+
+        detectionList.innerHTML = `
+            <div class="empty-detection">
+                No objects detected.
+            </div>
+        `;
+    }
+
+
+    if (objectCount) {
+
+        objectCount.textContent =
+            "0";
+    }
+
+
+    if (inferenceTime) {
+
+        inferenceTime.textContent =
+            "--";
+    }
+
+
+    if (confidence) {
+
+        confidence.textContent =
+            "0.0%";
+    }
+
+
+    /*
+       Reset GPS and depth.
+    */
+
+    if (latitude) {
+
+        latitude.textContent =
+            "--";
+    }
+
+
+    if (longitude) {
+
+        longitude.textContent =
+            "--";
+    }
+
+
+    if (depth) {
+
+        depth.textContent =
+            "--";
+    }
+}
+
+
+/* ================================================================
+   REMOVE IMAGE
+================================================================ */
 
 if (removeButton) {
 
     removeButton.addEventListener(
         "click",
-        function () {
+        function() {
 
             selectedFile = null;
 
 
             if (fileInput) {
+
                 fileInput.value = "";
             }
 
 
-            if (previewImage) {
-
-                previewImage.removeAttribute(
-                    "src"
-                );
-
-            }
-
-
             if (fileName) {
-                fileName.textContent = "";
-            }
 
-
-            if (selectedImageSection) {
-
-                selectedImageSection.classList.add(
-                    "hidden"
-                );
-
-            }
-
-
-            if (resultsSection) {
-
-                resultsSection.classList.add(
-                    "hidden"
-                );
-
-            }
-
-
-            if (resultImage) {
-
-                resultImage.removeAttribute(
-                    "src"
-                );
-
+                fileName.textContent =
+                    "No image selected";
             }
 
 
             if (detectButton) {
 
-                detectButton.disabled = true;
-
+                detectButton.disabled =
+                    true;
             }
 
 
             clearError();
 
-
-            console.log(
-                "Selected image removed."
-            );
+            resetResults();
 
         }
     );
-
 }
 
 
-// ============================================================
-// DETECTION BUTTON
-// ============================================================
+/* ================================================================
+   UPDATE SURVEY DATA
+================================================================ */
+
+function updateSurveyData(data) {
+
+    console.log(
+        "Survey data received:",
+        data
+    );
+
+
+    if (!data) {
+
+        console.warn(
+            "No survey data received."
+        );
+
+        return;
+    }
+
+
+    /*
+       Backend format:
+
+       {
+           latitude: 18.5204,
+           longitude: 73.8567,
+           depth_m: 20.0
+       }
+    */
+
+
+    if (
+        latitude &&
+        data.latitude !== undefined &&
+        data.latitude !== null
+    ) {
+
+        latitude.textContent =
+            Number(data.latitude)
+                .toFixed(6);
+    }
+
+
+    if (
+        longitude &&
+        data.longitude !== undefined &&
+        data.longitude !== null
+    ) {
+
+        longitude.textContent =
+            Number(data.longitude)
+                .toFixed(6);
+    }
+
+
+    if (
+        depth &&
+        data.depth_m !== undefined &&
+        data.depth_m !== null
+    ) {
+
+        depth.textContent =
+            Number(data.depth_m)
+                .toFixed(1);
+    }
+}
+
+
+/* ================================================================
+   UPDATE DETECTION LIST
+================================================================ */
+
+function updateDetectionList(
+    detections
+) {
+
+    if (!detectionList) {
+        return;
+    }
+
+
+    if (
+        !Array.isArray(detections) ||
+        detections.length === 0
+    ) {
+
+        detectionList.innerHTML = `
+            <div class="empty-detection">
+                No objects detected.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    detectionList.innerHTML = "";
+
+
+    detections.forEach(
+        function(item, index) {
+
+            /*
+               Support different backend formats.
+            */
+
+            let name =
+                item.name ??
+                item.class_name ??
+                item.label ??
+                item.class ??
+                "Unknown Object";
+
+
+            let conf =
+                item.confidence ??
+                item.conf ??
+                item.score ??
+                0;
+
+
+            const row =
+                document.createElement(
+                    "div"
+                );
+
+            row.className =
+                "detection-item";
+
+
+            row.innerHTML = `
+
+                <div>
+
+                    <span class="detection-number">
+                        ${index + 1}.
+                    </span>
+
+                    <span class="detection-name">
+                        ${escapeHtml(name)}
+                    </span>
+
+                </div>
+
+                <div class="detection-confidence">
+                    ${formatConfidence(conf)}
+                </div>
+
+            `;
+
+
+            detectionList.appendChild(
+                row
+            );
+        }
+    );
+}
+
+
+/* ================================================================
+   HTML ESCAPE
+================================================================ */
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+/* ================================================================
+   GET RESULT IMAGE
+================================================================ */
+
+function getResultImage(data) {
+
+    /*
+       Support common backend names.
+    */
+
+    return (
+        data.result_image ||
+        data.annotated_image ||
+        data.output_image ||
+        data.image ||
+        data.result ||
+        null
+    );
+}
+
+
+/* ================================================================
+   DETECTION
+================================================================ */
 
 if (detectButton) {
 
     detectButton.addEventListener(
         "click",
-        async function () {
+        async function() {
 
-            console.log(
-                "DETECT BUTTON CLICKED"
-            );
+            if (!selectedFile) {
+
+                showError(
+                    "Please select a sonar image first."
+                );
+
+                return;
+            }
 
 
             clearError();
 
 
-            // ------------------------------------------------
-            // Check selected file
-            // ------------------------------------------------
+            /*
+               Disable button while processing.
+            */
 
-            if (!selectedFile) {
+            detectButton.disabled =
+                true;
 
-                showError(
-                    "Please select an image first."
-                );
-
-                return;
-
-            }
-
-
-            // ------------------------------------------------
-            // Disable button
-            // ------------------------------------------------
-
-            detectButton.disabled = true;
-
-
-            if (detectButtonText) {
-
-                detectButtonText.textContent =
-                    "Detecting...";
-
-            }
-
-
-            setStatus(
-                "Running YOLO detection...",
-                true
-            );
-
-
-            // ------------------------------------------------
-            // Create FormData
-            // ------------------------------------------------
-
-            const formData =
-                new FormData();
-
-            formData.append(
-                "file",
-                selectedFile
-            );
-
-
-            console.log(
-                "Sending image to YOLO backend..."
-            );
-
-
-            console.log(
-                "POST /api/detect starting..."
-            );
+            detectButton.textContent =
+                "Detecting...";
 
 
             try {
 
-                // ====================================================
-                // SEND IMAGE TO BACKEND
-                // ====================================================
+                const formData =
+                    new FormData();
+
+
+                formData.append(
+                    "file",
+                    selectedFile
+                );
+
+
+                console.log(
+                    "Sending image to /api/detect"
+                );
+
 
                 const response =
                     await fetch(
-                        API_BASE_URL +
                         "/api/detect",
                         {
                             method: "POST",
@@ -636,31 +693,26 @@ if (detectButton) {
                     );
 
 
-                console.log(
-                    "Backend response received:",
-                    response.status
-                );
+                /*
+                   First check HTTP status.
+                */
 
+                if (!response.ok) {
 
-                // ====================================================
-                // READ RESPONSE
-                // ====================================================
-
-                let data;
-
-
-                try {
-
-                    data =
-                        await response.json();
-
-                } catch (jsonError) {
+                    const errorText =
+                        await response.text();
 
                     throw new Error(
-                        "Backend returned invalid JSON."
+                        "Server error " +
+                        response.status +
+                        ": " +
+                        errorText
                     );
-
                 }
+
+
+                const data =
+                    await response.json();
 
 
                 console.log(
@@ -669,240 +721,40 @@ if (detectButton) {
                 );
 
 
-                // ====================================================
-                // BACKEND ERROR
-                // ====================================================
-
-                if (!response.ok) {
+                if (
+                    data.success === false
+                ) {
 
                     throw new Error(
                         data.error ||
                         "Detection failed."
                     );
-
                 }
 
 
-                if (!data.success) {
+                /* =================================================
+                   RESULT IMAGE
+                ================================================= */
 
-                    throw new Error(
-                        data.error ||
-                        "YOLO detection failed."
-                    );
-
-                }
+                const outputImage =
+                    getResultImage(data);
 
 
-                // ====================================================
-                // GET DETECTIONS
-                // ====================================================
+                if (outputImage) {
 
-                const detections =
-                    Array.isArray(
-                        data.detections
-                    )
-                        ? data.detections
-                        : [];
+                    if (
+                        typeof outputImage ===
+                        "string"
+                    ) {
 
+                        /*
+                           If backend already returns
+                           data:image/... keep it.
+                        */
 
-                const count =
-                    Number(
-                        data.detection_count ??
-                        detections.length
-                    );
-
-
-                // ====================================================
-                // UPDATE DETECTION COUNT
-                // ====================================================
-
-                if (detectionCount) {
-
-                    detectionCount.textContent =
-                        count;
-
-                }
-
-
-                if (summaryCount) {
-
-                    summaryCount.textContent =
-                        count;
-
-                }
-
-
-                // ====================================================
-                // UPDATE CONFIDENCE
-                // ====================================================
-
-                const averageConfidence =
-                    data.average_confidence_percent ??
-                    data.average_confidence ??
-                    0;
-
-
-                if (summaryConfidence) {
-
-                    summaryConfidence.textContent =
-                        formatConfidence(
-                            averageConfidence
-                        );
-
-                }
-
-
-                // ====================================================
-                // UPDATE INFERENCE TIME
-                // ====================================================
-
-                if (inferenceTime) {
-
-                    inferenceTime.textContent =
-                        formatInferenceTime(
-                            data.inference_time_ms
-                        );
-
-                }
-
-
-                // ====================================================
-                // BUILD DETECTION LIST
-                // ====================================================
-
-                if (detectionList) {
-
-                    detectionList.innerHTML = "";
-
-
-                    if (detections.length === 0) {
-
-                        const emptyItem =
-                            document.createElement(
-                                "div"
-                            );
-
-                        emptyItem.className =
-                            "detection-item";
-
-
-                        emptyItem.textContent =
-                            "No objects detected.";
-
-                        detectionList.appendChild(
-                            emptyItem
-                        );
-
-                    } else {
-
-                        detections.forEach(
-                            function (detection, index) {
-
-                                const item =
-                                    document.createElement(
-                                        "div"
-                                    );
-
-                                item.className =
-                                    "detection-item";
-
-
-                                const className =
-                                    detection.class_name ||
-                                    "Unknown";
-
-
-                                const confidence =
-                                    detection.confidence_percent ??
-                                    detection.confidence ??
-                                    0;
-
-
-                                item.innerHTML = `
-                                    <div class="detection-name">
-                                        ${index + 1}. ${className}
-                                    </div>
-
-                                    <div class="detection-confidence">
-                                        ${formatConfidence(confidence)}
-                                    </div>
-                                `;
-
-
-                                detectionList.appendChild(
-                                    item
-                                );
-
-                            }
-                        );
-
+                        resultImage.src =
+                            outputImage;
                     }
-
-                }
-
-
-                // ====================================================
-                // GET ANNOTATED YOLO IMAGE
-                // ====================================================
-
-                const annotatedImage =
-                    data.annotated_image ||
-                    data.result_image ||
-                    data.image;
-
-
-                console.log(
-                    "Annotated image available:",
-                    Boolean(annotatedImage)
-                );
-
-
-                // ====================================================
-                // DISPLAY ANNOTATED YOLO IMAGE
-                // ====================================================
-
-                if (
-                    annotatedImage &&
-                    resultImage
-                ) {
-
-                    console.log(
-                        "Annotated YOLO image received."
-                    );
-
-
-                    console.log(
-                        "Image prefix:",
-                        annotatedImage.substring(
-                            0,
-                            60
-                        )
-                    );
-
-
-                    console.log(
-                        "Image length:",
-                        annotatedImage.length
-                    );
-
-
-                    // ------------------------------------------------
-                    // IMPORTANT:
-                    //
-                    // The backend ALREADY returns:
-                    //
-                    // data:image/jpeg;base64,/9j/...
-                    //
-                    // Therefore we DO NOT add another prefix.
-                    // ------------------------------------------------
-
-                    resultImage.src =
-                        annotatedImage;
-
-
-                    resultImage.removeAttribute(
-                        "hidden"
-                    );
 
 
                     resultImage.classList.remove(
@@ -910,118 +762,120 @@ if (detectButton) {
                     );
 
 
-                    resultImage.style.display =
-                        "block";
+                    if (resultPlaceholder) {
 
-
-                    resultImage.style.visibility =
-                        "visible";
-
-
-                    resultImage.style.opacity =
-                        "1";
-
-
-                    // ------------------------------------------------
-                    // IMAGE LOAD SUCCESS
-                    // ------------------------------------------------
-
-                    resultImage.onload =
-                        function () {
-
-                            console.log(
-                                "YOLO result image loaded successfully."
-                            );
-
-
-                            console.log(
-                                "Result image dimensions:",
-                                resultImage.naturalWidth,
-                                "x",
-                                resultImage.naturalHeight
-                            );
-
-                        };
-
-
-                    // ------------------------------------------------
-                    // IMAGE LOAD ERROR
-                    // ------------------------------------------------
-
-                    resultImage.onerror =
-                        function (event) {
-
-                            console.error(
-                                "YOLO result image failed to load.",
-                                event
-                            );
-
-
-                            console.error(
-                                "Image source starts with:",
-                                resultImage.src.substring(
-                                    0,
-                                    100
-                                )
-                            );
-
-
-                            showError(
-                                "YOLO detection completed, but the result image could not be displayed."
-                            );
-
-                        };
-
-
-                } else {
-
-                    console.error(
-                        "No annotated image was returned by backend."
-                    );
-
-
-                    showError(
-                        "Detection completed, but the backend did not return a result image."
-                    );
-
+                        resultPlaceholder.classList.add(
+                            "hidden"
+                        );
+                    }
                 }
 
 
-                // ====================================================
-                // SHOW RESULTS SECTION
-                // ====================================================
+                /* =================================================
+                   DETECTIONS
+                ================================================= */
 
-                if (resultsSection) {
-
-                    resultsSection.classList.remove(
-                        "hidden"
-                    );
+                const detections =
+                    data.detections || [];
 
 
-                    resultsSection.style.display =
-                        "block";
-
-                    resultsSection.style.visibility =
-                        "visible";
-
-                    resultsSection.style.opacity =
-                        "1";
-
-                }
-
-
-                // ====================================================
-                // STATUS
-                // ====================================================
-
-                setStatus(
-                    "Detection completed",
-                    true
+                updateDetectionList(
+                    detections
                 );
 
 
-                console.log(
-                    "Detection completed successfully."
+                /* =================================================
+                   OBJECT COUNT
+                ================================================= */
+
+                if (objectCount) {
+
+                    objectCount.textContent =
+                        detections.length;
+                }
+
+
+                /* =================================================
+                   INFERENCE TIME
+                ================================================= */
+
+                if (inferenceTime) {
+
+                    inferenceTime.textContent =
+                        formatInferenceTime(
+                            data.inference_time_ms
+                        );
+                }
+
+
+                /* =================================================
+                   CONFIDENCE
+                ================================================= */
+
+                let averageConfidence =
+                    data.average_confidence;
+
+
+                /*
+                   If backend doesn't send average
+                   confidence, calculate it.
+                */
+
+                if (
+                    averageConfidence ===
+                    undefined &&
+                    detections.length > 0
+                ) {
+
+                    let total = 0;
+
+
+                    detections.forEach(
+                        function(item) {
+
+                            total += Number(
+                                item.confidence ??
+                                item.conf ??
+                                item.score ??
+                                0
+                            );
+                        }
+                    );
+
+
+                    averageConfidence =
+                        total /
+                        detections.length;
+                }
+
+
+                if (confidence) {
+
+                    confidence.textContent =
+                        formatConfidence(
+                            averageConfidence
+                        );
+                }
+
+
+                /* =================================================
+                   GPS + DEPTH
+                ================================================= */
+
+                /*
+                   Most important part.
+
+                   Backend should return:
+
+                   "survey": {
+                       "latitude": ...,
+                       "longitude": ...,
+                       "depth_m": ...
+                   }
+                */
+
+                updateSurveyData(
+                    data.survey
                 );
 
 
@@ -1035,131 +889,30 @@ if (detectButton) {
 
                 showError(
                     error.message ||
-                    "Something went wrong while detecting the image."
+                    "Unable to process image."
                 );
-
-
-                setStatus(
-                    "Detection failed",
-                    false
-                );
-
 
             } finally {
 
-                // ------------------------------------------------
-                // Re-enable button
-                // ------------------------------------------------
+                detectButton.disabled =
+                    !selectedFile;
 
-                detectButton.disabled = false;
-
-
-                if (detectButtonText) {
-
-                    detectButtonText.textContent =
-                        "Detect Debris";
-
-                }
-
+                detectButton.textContent =
+                    "Detect Objects";
             }
 
         }
     );
-
 }
 
 
-// ============================================================
-// CHECK BACKEND STATUS
-// ============================================================
+/* ================================================================
+   INITIAL STATE
+================================================================ */
 
-async function checkBackendStatus() {
+resetResults();
 
-    try {
-
-        console.log(
-            "Checking YOLO backend status..."
-        );
-
-
-        const response =
-            await fetch(
-                API_BASE_URL +
-                "/api/status"
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Backend status request failed."
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        console.log(
-            "Backend status:",
-            data
-        );
-
-
-        if (data.model_ready) {
-
-            setStatus(
-                "YOLO model ready",
-                true
-            );
-
-        } else {
-
-            setStatus(
-                "YOLO model not ready",
-                false
-            );
-
-
-            console.error(
-                "Model error:",
-                data.model_error
-            );
-
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "Could not connect to backend:",
-            error
-        );
-
-
-        setStatus(
-            "Backend unavailable",
-            false
-        );
-
-    }
-
-}
-
-
-// ============================================================
-// START STATUS CHECK
-// ============================================================
-
-checkBackendStatus();
-
-
-// ============================================================
-// GLOBAL DEBUG MESSAGE
-// ============================================================
 
 console.log(
-    "Marine AI app.js initialized successfully."
+    "Marine AI frontend loaded."
 );
