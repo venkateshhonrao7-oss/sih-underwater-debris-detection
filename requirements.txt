@@ -3,4 +3,4 @@ uvicorn[standard]
 python-multipart
 pillow
 numpy
-ultralytics
+ultralytics-opencv-headless
