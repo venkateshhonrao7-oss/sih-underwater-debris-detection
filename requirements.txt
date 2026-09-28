@@ -4,3 +4,4 @@ python-multipart
 pillow
 numpy
 ultralytics-opencv-headless
+opencv-python-headless
